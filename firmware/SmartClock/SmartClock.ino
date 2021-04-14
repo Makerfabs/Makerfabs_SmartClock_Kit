@@ -1,0 +1,561 @@
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#include <SPI.h>
+#include "wifi_save.h"
+#include <WiFi.h>
+#include "time.h"
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+
+#include "a1.h"
+#include "sun.h"
+#include "rain.h"
+#include "cloud.h"
+#include "snow.h"
+
+#define BUZZER_PIN 32
+
+#define BUTTON_S WIFI_SET_PIN
+#define BUTTON1 26
+#define BUTTON2 27
+
+#define TFT_CS 15        // Hallowing display control pins: chip select
+#define TFT_RST 23       // Display reset
+#define TFT_DC 22        // Display data/command select
+#define TFT_BACKLIGHT -1 // Display backlight pin
+
+#define TFT_MOSI 13 // Data out
+#define TFT_SCLK 14 // Clock out
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
+
+const char *ntpServer = "120.25.108.11";
+const long gmtOffset_sec = (-5) * 60 * 60; //China+8
+const int daylightOffset_sec = 0;
+
+struct tm timeinfo;
+const int page_num = 3;
+int page = 0;
+int page_line = 0;
+int page_add = 0;
+int16_t alarm_h = 8;
+int16_t alarm_m = 0;
+int alarm_flag = 0;
+
+String weather_location = "Newyork";
+
+void setup(void)
+{
+
+    Serial.begin(115200);
+    Serial.print(F("Hello! ST77xx TFT Test"));
+
+    pin_init();
+    tft_init();
+    wifi_init();
+    alarm_init();
+
+    tft.setCursor(0, 100);
+    tft.print("All init over");
+    delay(2000);
+
+    tft.fillScreen(ST77XX_BLACK);
+
+    tft.drawRGBBitmap(0, 0, a1, 128, 128);
+    delay(1000);
+}
+
+void loop()
+{
+    main_menu();
+}
+
+//Init
+
+void pin_init()
+{
+    Serial.println("Start PIN init");
+
+    pinMode(BUZZER_PIN, OUTPUT);
+    pinMode(BUTTON1, INPUT_PULLUP);
+    pinMode(BUTTON2, INPUT_PULLUP);
+
+    /*
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(500);
+    digitalWrite(BUZZER_PIN, LOW);
+    */
+
+    Serial.println("PIN init done");
+    delay(100);
+}
+
+void tft_init()
+{
+    Serial.println("Start TFT init");
+
+    tft.initR(INITR_144GREENTAB);
+    tft.fillScreen(ST77XX_BLACK);
+    delay(100);
+
+    Serial.println("TFT init done");
+    delay(100);
+
+    tft.setCursor(0, 0);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.print("TFT init over");
+}
+
+void wifi_init()
+{
+    Serial.println("Start WIFI config and ntp init");
+
+    tft.setCursor(0, 20);
+    tft.print("WIFI init start");
+
+    if (wifi_set_main())
+    {
+        Serial.println("Connect WIFI SUCCESS");
+        tft.setCursor(0, 40);
+        tft.print("Connect WIFI SUCCESS");
+    }
+    else
+    {
+        Serial.println("Connect WIFI FAULT");
+        tft.setCursor(0, 40);
+        tft.print("Connect WIFI FAULT");
+    }
+
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    Serial.println(F("Alread get npt time."));
+    tft.setCursor(0, 60);
+    tft.print("Alread get npt time");
+}
+
+void alarm_init()
+{
+    read_alarm(&alarm_h, &alarm_m);
+    tft.setCursor(0, 80);
+    tft.print("Alread get alarm time");
+}
+
+//Menu
+
+void main_menu()
+{
+    if (!getLocalTime(&timeinfo))
+    {
+        Serial.println("Failed to obtain time");
+    }
+
+    switch (page)
+    {
+    case 0:
+        clock_page();
+        break;
+    case 1:
+        weather_page();
+        //weather_request();
+        break;
+    case 2:
+        alarm_page();
+        break;
+    default:
+        break;
+    }
+
+    if (timeinfo.tm_hour == alarm_h && timeinfo.tm_min == alarm_m)
+    {
+        if (alarm_flag == 0)
+            alarming();
+        alarm_flag = 1;
+    }
+    else
+    {
+        alarm_flag = 0;
+    }
+
+    int runtime = millis();
+    while (millis() - runtime < 10000)
+    {
+        if (digitalRead(BUTTON_S) == LOW)
+        {
+            delay(40);
+            if (digitalRead(BUTTON_S) == LOW)
+            {
+                page = ++page % page_num;
+                page_line = 0;
+                page_add = 0;
+                break;
+            }
+        }
+
+        if (digitalRead(BUTTON1) == LOW)
+        {
+            delay(40);
+            if (digitalRead(BUTTON1) == LOW)
+            {
+                page_line++;
+                break;
+            }
+        }
+
+        if (digitalRead(BUTTON2) == LOW)
+        {
+            delay(40);
+            if (digitalRead(BUTTON2) == LOW)
+            {
+                page_add++;
+                break;
+            }
+        }
+        delay(100);
+    }
+}
+
+void clock_page()
+{
+    tft.fillScreen(ST77XX_BLACK);
+
+    String date_str = (String)(timeinfo.tm_year + 1900) + "/" + (String)(timeinfo.tm_mon + 1) + "/" + (String)(timeinfo.tm_mday + 1);
+
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(10, 10);
+    tft.print(date_str);
+
+    tft.setCursor(80, 110);
+    String alarm_str = "";
+    alarm_h < 10 ? alarm_str += "0" : alarm_str += "";
+    alarm_str += (String)alarm_h + ":";
+    alarm_m < 10 ? alarm_str += "0" : alarm_str += "";
+    alarm_str += (String)alarm_m;
+    tft.print(alarm_str);
+
+    tft.setCursor(45, 30);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setTextSize(4);
+
+    if (timeinfo.tm_hour < 10)
+        tft.print("0");
+    tft.print(timeinfo.tm_hour);
+    tft.setCursor(45, 64);
+    if (timeinfo.tm_min < 10)
+        tft.print("0");
+    tft.print(timeinfo.tm_min);
+}
+
+void weather_page()
+{
+    tft.fillScreen(ST77XX_BLACK);
+    tft.setCursor(0, 10);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.print("Get the weather online");
+
+    tft.setCursor(0, 40);
+    tft.print("Waiting ... ...");
+
+    weather_request();
+}
+
+void alarm_page()
+{
+    tft.fillScreen(ST77XX_BLACK);
+
+    tft.setCursor(10, 10);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(2);
+    tft.print("ALARM SET");
+
+    if (page_line % 2 == 0)
+    {
+        tft.fillCircle(35, 40, 4, ST77XX_WHITE);
+        if (page_add != 0)
+        {
+            page_add = 0;
+            alarm_h = ++alarm_h % 24;
+            record_alarm(alarm_h, alarm_m);
+        }
+    }
+    else
+    {
+        tft.fillCircle(35, 74, 4, ST77XX_WHITE);
+        if (page_add != 0)
+        {
+            page_add = 0;
+            alarm_m = ++alarm_m % 60;
+            record_alarm(alarm_h, alarm_m);
+        }
+    }
+
+    tft.setCursor(45, 30);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setTextSize(4);
+    if (alarm_h < 10)
+        tft.print("0");
+    tft.print(alarm_h);
+    tft.setCursor(45, 64);
+    if (alarm_m < 10)
+        tft.print("0");
+    tft.print(alarm_m);
+}
+
+//Functions
+
+String wind_txt[] = {"north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"};
+
+void weather_request()
+{
+    HTTPClient http;
+    String text = "";
+
+    Serial.print("[HTTP] begin...\n");
+    // configure traged server and url
+
+    //persional api,please change to yourself
+    //bool begin(String url);
+    String url = "https://free-api.heweather.net/s6/weather/now?location=" + weather_location + "&key=2d63e6d9a95c4e8f8d3f65d0b5bcdf7f&lang=en";
+    http.begin(url);
+
+    Serial.print("[HTTP] GET...\n");
+    // start connection and send HTTP header
+    int httpCode = http.GET();
+
+    // httpCode will be negative on error
+    if (httpCode > 0)
+    {
+        // HTTP header has been send and Server response header has been handled
+        Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+
+        // file found at server
+        if (httpCode == HTTP_CODE_OK)
+        {
+            String payload = http.getString();
+            Serial.println(payload);
+
+            //JSON
+            DynamicJsonDocument doc(1024);
+            deserializeJson(doc, payload);
+            JsonObject obj = doc.as<JsonObject>();
+
+            String cond_num = doc["HeWeather6"][0]["now"]["cond_code"];
+            String cond_txt = doc["HeWeather6"][0]["now"]["cond_txt"];
+            String tmp = doc["HeWeather6"][0]["now"]["tmp"];
+            String hum = doc["HeWeather6"][0]["now"]["hum"];
+            int wind_deg = doc["HeWeather6"][0]["now"]["wind_deg"];
+
+            weather_show(cond_num, tmp, hum);
+            text = "Shenzhen, " + cond_txt + ", " + tmp + " centigrade, " + wind_txt[wind_deg / 45] + " wind,relative humidity " + hum + " percent.";
+            Serial.println(text);
+        }
+    }
+    else
+    {
+        Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    }
+
+    http.end();
+}
+
+void weather_show(String cond_num, String temperature, String hum)
+{
+    tft.fillScreen(ST77XX_BLACK);
+
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(20, 10);
+    tft.print(weather_location);
+
+    int cond_code = cond_num.toInt();
+    Serial.printf("cond_code: %d\n", cond_code);
+
+    if (cond_code == 100 || cond_code == 150) //sun
+        tft.drawRGBBitmap(32, 32, sun, 64, 64);
+    else if (cond_code > 100 && cond_code < 300) //cloud
+        tft.drawRGBBitmap(32, 32, cloud, 64, 64);
+    else if (cond_code >= 300 && cond_code < 400) //rain
+        tft.drawRGBBitmap(32, 32, rain, 64, 64);
+    else if (cond_code >= 400 && cond_code < 500) //snow
+        tft.drawRGBBitmap(32, 32, snow, 64, 64);
+    else
+    {
+        tft.setTextColor(ST77XX_RED);
+        tft.setTextSize(2);
+        tft.setCursor(20, 60);
+        tft.print("No Icon");
+    }
+
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+
+    tft.setCursor(30, 110);
+    tft.print(temperature);
+    tft.print(" C");
+
+    tft.setCursor(90, 110);
+    tft.print(hum);
+    tft.print(" %");
+}
+
+void alarming()
+{
+    int flag = 0;
+    int runtime = millis();
+
+    while (1)
+    {
+
+        if (millis() - runtime > 1000)
+        {
+            runtime = millis();
+            if (flag % 2 == 0)
+            {
+                tft.fillRect(0, 0, 128, 24, ST77XX_RED);
+                tft.fillRect(0, 104, 128, 24, ST77XX_YELLOW);
+                digitalWrite(BUZZER_PIN, HIGH);
+            }
+            else
+            {
+                digitalWrite(BUZZER_PIN, LOW);
+                tft.fillRect(0, 0, 128, 24, ST77XX_YELLOW);
+                tft.fillRect(0, 104, 128, 24, ST77XX_RED);
+            }
+            flag++;
+        }
+        if (digitalRead(BUTTON_S) == LOW)
+        {
+            break;
+        }
+
+        if (digitalRead(BUTTON1) == LOW)
+        {
+            break;
+        }
+
+        if (digitalRead(BUTTON2) == LOW)
+        {
+            break;
+        }
+        delay(10);
+    }
+
+    digitalWrite(BUZZER_PIN, LOW);
+}
+
+void record_alarm(int16_t hour, int16_t minute)
+{
+
+    // 初始化NVS，并检查初始化情况
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        // 如果NVS分区被占用则对其进行擦除
+        // 并再次初始化
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    // Open 打开NVS文件
+    printf("\n");
+    printf("Opening Non-Volatile Alarm (NVS) handle... ");
+    nvs_handle my_handle;                               // 定义不透明句柄
+    err = nvs_open("Alarm", NVS_READWRITE, &my_handle); // 打开文件
+    if (err != ESP_OK)
+    {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        printf("Done\n");
+
+        // Write
+        printf("Updating alarm_h in NVS ... ");
+        err = nvs_set_i16(my_handle, "alarm_h", hour);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+        printf("Updating alarm_m in NVS ... ");
+        err = nvs_set_i16(my_handle, "alarm_m", minute);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+        // Commit written value.
+        // After setting any values, nvs_commit() must be called to ensure changes are written
+        // to flash storage. Implementations may write to storage at other times,
+        // but this is not guaranteed.
+        printf("Committing updates in NVS ... ");
+        err = nvs_commit(my_handle);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+        // Close
+        nvs_close(my_handle);
+    }
+
+    printf("\n");
+}
+
+void read_alarm(int16_t *hour, int16_t *minute)
+{
+    // 初始化NVS，并检查初始化情况
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        // 如果NVS分区被占用则对其进行擦除
+        // 并再次初始化
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    // Open 打开NVS文件
+    printf("\n");
+    printf("Opening Non-Volatile Alarm (NVS) handle... ");
+    nvs_handle my_handle;                               // 定义不透明句柄
+    err = nvs_open("Alarm", NVS_READWRITE, &my_handle); // 打开文件
+    if (err != ESP_OK)
+    {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        printf("Done\n");
+
+        // Read
+        printf("Reading Alarm from NVS ... \n");
+
+        err = nvs_get_i16(my_handle, "alarm_h", hour);
+        switch (err)
+        {
+        case ESP_OK:
+            printf("Done\n");
+            printf("alarm_h: %d\n", *hour);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            break;
+        default:
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+        }
+
+        err = nvs_get_i16(my_handle, "alarm_m", minute);
+        switch (err)
+        {
+        case ESP_OK:
+            printf("Done\n");
+            printf("alarm_m: %d\n", *minute);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            break;
+        default:
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+        }
+
+        // Close
+        nvs_close(my_handle);
+    }
+
+    printf("\n");
+    return;
+}
