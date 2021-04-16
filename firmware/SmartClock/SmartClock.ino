@@ -41,6 +41,11 @@ int page_add = 0;
 int16_t alarm_h = 8;
 int16_t alarm_m = 0;
 int alarm_flag = 0;
+int alarm_enable = 1;
+int last_h = -1;
+int last_m = -1;
+long int weather_runtime = -600000;
+int button_flag = 0;
 
 String weather_location = "Newyork";
 
@@ -48,7 +53,7 @@ void setup(void)
 {
 
     Serial.begin(115200);
-    Serial.print(F("Hello! ST77xx TFT Test"));
+    Serial.print(F("Hello! Makerfabs Smartclock Kit"));
 
     pin_init();
     tft_init();
@@ -61,6 +66,7 @@ void setup(void)
 
     tft.fillScreen(ST77XX_BLACK);
 
+    //Show logo
     tft.drawRGBBitmap(0, 0, a1, 128, 128);
     delay(1000);
 }
@@ -77,6 +83,7 @@ void pin_init()
     Serial.println("Start PIN init");
 
     pinMode(BUZZER_PIN, OUTPUT);
+    pinMode(BUTTON_S, INPUT_PULLUP);
     pinMode(BUTTON1, INPUT_PULLUP);
     pinMode(BUTTON2, INPUT_PULLUP);
 
@@ -165,7 +172,8 @@ void main_menu()
         break;
     }
 
-    if (timeinfo.tm_hour == alarm_h && timeinfo.tm_min == alarm_m)
+    //Check alarm clock
+    if (timeinfo.tm_hour == alarm_h &&timeinfo.tm_min == alarm_m &&alarm_enable == 1)
     {
         if (alarm_flag == 0)
             alarming();
@@ -176,6 +184,7 @@ void main_menu()
         alarm_flag = 0;
     }
 
+    //Check Button Status in 10s
     int runtime = millis();
     while (millis() - runtime < 10000)
     {
@@ -184,9 +193,11 @@ void main_menu()
             delay(40);
             if (digitalRead(BUTTON_S) == LOW)
             {
+                button_flag = 1;
                 page = ++page % page_num;
                 page_line = 0;
                 page_add = 0;
+                
                 break;
             }
         }
@@ -196,6 +207,7 @@ void main_menu()
             delay(40);
             if (digitalRead(BUTTON1) == LOW)
             {
+                button_flag = 1;
                 page_line++;
                 break;
             }
@@ -206,16 +218,27 @@ void main_menu()
             delay(40);
             if (digitalRead(BUTTON2) == LOW)
             {
+                button_flag = 1;
                 page_add++;
                 break;
             }
         }
+        
         delay(100);
     }
 }
 
 void clock_page()
 {
+    //If minute wasn't change,don't flesh screen
+    if (last_h == timeinfo.tm_hour && last_m == timeinfo.tm_min && button_flag == 0)
+        return;
+    else
+    {
+        button_flag = 0;
+        last_h = timeinfo.tm_hour;
+        last_m = timeinfo.tm_min;
+    }
     tft.fillScreen(ST77XX_BLACK);
 
     String date_str = (String)(timeinfo.tm_year + 1900) + "/" + (String)(timeinfo.tm_mon + 1) + "/" + (String)(timeinfo.tm_mday + 1);
@@ -225,6 +248,24 @@ void clock_page()
     tft.setCursor(10, 10);
     tft.print(date_str);
 
+    //Check weather alarm enable set
+    if (page_add == 1)
+    {
+        page_add = 0;
+        alarm_enable = (alarm_enable + 1) % 2;
+    }
+
+    //Check alarm enable display
+    if (alarm_enable)
+    {
+        tft.fillRect(70, 110, 5, 5, ST77XX_YELLOW);
+    }
+    else
+    {
+        tft.fillRect(70, 110, 5, 5, ST77XX_BLACK);
+    }
+
+    //Alarm display
     tft.setCursor(80, 110);
     String alarm_str = "";
     alarm_h < 10 ? alarm_str += "0" : alarm_str += "";
@@ -233,6 +274,7 @@ void clock_page()
     alarm_str += (String)alarm_m;
     tft.print(alarm_str);
 
+    //Clock display
     tft.setCursor(45, 30);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(4);
@@ -248,6 +290,15 @@ void clock_page()
 
 void weather_page()
 {
+    //Every ten minutes requst.
+    if (millis() - weather_runtime < 600000 && button_flag == 0)
+        return;
+    else
+    {
+        button_flag = 0;
+        weather_runtime = millis();
+    }
+
     tft.fillScreen(ST77XX_BLACK);
     tft.setCursor(0, 10);
     tft.setTextColor(ST77XX_WHITE);
@@ -269,6 +320,7 @@ void alarm_page()
     tft.setTextSize(2);
     tft.print("ALARM SET");
 
+    //Check button action, set alarm time.
     if (page_line % 2 == 0)
     {
         tft.fillCircle(35, 40, 4, ST77XX_WHITE);
@@ -371,6 +423,7 @@ void weather_show(String cond_num, String temperature, String hum)
     int cond_code = cond_num.toInt();
     Serial.printf("cond_code: %d\n", cond_code);
 
+    //The weather code is in https://dev.qweather.com/docs/start/icons/
     if (cond_code == 100 || cond_code == 150) //sun
         tft.drawRGBBitmap(32, 32, sun, 64, 64);
     else if (cond_code > 100 && cond_code < 300) //cloud
@@ -388,15 +441,15 @@ void weather_show(String cond_num, String temperature, String hum)
     }
 
     tft.setTextColor(ST77XX_WHITE);
-    tft.setTextSize(1);
+    tft.setTextSize(2);
 
-    tft.setCursor(30, 110);
+    tft.setCursor(10, 110);
     tft.print(temperature);
     tft.print(" C");
 
-    tft.setCursor(90, 110);
+    tft.setCursor(80, 110);
     tft.print(hum);
-    tft.print(" %");
+    tft.print("%");
 }
 
 void alarming()
