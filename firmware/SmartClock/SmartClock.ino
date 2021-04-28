@@ -46,8 +46,9 @@ int last_h = -1;
 int last_m = -1;
 long int weather_runtime = -600000;
 int button_flag = 0;
+int location_index = 0;
 
-String weather_location = "Newyork";
+String weather_location[] = {"Newyork","London","beijing","paris"};
 
 void setup(void)
 {
@@ -121,14 +122,19 @@ void wifi_init()
     tft.setCursor(0, 20);
     tft.print("WIFI init start");
 
+    tft.setCursor(0, 40);
+    tft.print("If you want set WIFI. Hold down S1 button 3 second, then clock will go into Settings Mode. Use your phone connect to Makerfabs_ap, and visit \"192.168.4.1\".");
+
     if (wifi_set_main())
     {
+        tft.fillRect(0, 40, 128, 100, ST77XX_BLACK);
         Serial.println("Connect WIFI SUCCESS");
         tft.setCursor(0, 40);
         tft.print("Connect WIFI SUCCESS");
     }
     else
     {
+        tft.fillRect(0, 40, 128, 100, ST77XX_BLACK);
         Serial.println("Connect WIFI FAULT");
         tft.setCursor(0, 40);
         tft.print("Connect WIFI FAULT");
@@ -173,7 +179,7 @@ void main_menu()
     }
 
     //Check alarm clock
-    if (timeinfo.tm_hour == alarm_h &&timeinfo.tm_min == alarm_m &&alarm_enable == 1)
+    if (timeinfo.tm_hour == alarm_h && timeinfo.tm_min == alarm_m && alarm_enable == 1)
     {
         if (alarm_flag == 0)
             alarming();
@@ -197,7 +203,7 @@ void main_menu()
                 page = ++page % page_num;
                 page_line = 0;
                 page_add = 0;
-                
+
                 break;
             }
         }
@@ -223,7 +229,7 @@ void main_menu()
                 break;
             }
         }
-        
+
         delay(100);
     }
 }
@@ -295,6 +301,11 @@ void weather_page()
         return;
     else
     {
+        if (page_add == 1)
+        {
+            page_add = 0;
+            location_index = (location_index + 1) % 4;
+        }
         button_flag = 0;
         weather_runtime = millis();
     }
@@ -368,7 +379,7 @@ void weather_request()
 
     //persional api,please change to yourself
     //bool begin(String url);
-    String url = "https://free-api.heweather.net/s6/weather/now?location=" + weather_location + "&key=2d63e6d9a95c4e8f8d3f65d0b5bcdf7f&lang=en";
+    String url = "https://free-api.heweather.net/s6/weather/now?location=" + weather_location[location_index] + "&key=2d63e6d9a95c4e8f8d3f65d0b5bcdf7f&lang=en";
     http.begin(url);
 
     Serial.print("[HTTP] GET...\n");
@@ -418,7 +429,7 @@ void weather_show(String cond_num, String temperature, String hum)
     tft.setTextColor(ST77XX_WHITE);
     tft.setTextSize(1);
     tft.setCursor(20, 10);
-    tft.print(weather_location);
+    tft.print(weather_location[location_index]);
 
     int cond_code = cond_num.toInt();
     Serial.printf("cond_code: %d\n", cond_code);
