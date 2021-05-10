@@ -40,6 +40,7 @@ int page_line = 0;
 int page_add = 0;
 int16_t alarm_h = 8;
 int16_t alarm_m = 0;
+int16_t timezone = 0;
 int alarm_flag = 0;
 int alarm_enable = 1;
 int last_h = -1;
@@ -48,7 +49,8 @@ long int weather_runtime = -600000;
 int button_flag = 0;
 int location_index = 0;
 
-String weather_location[] = {"Newyork","London","beijing","paris"};
+String weather_location[] = {"Newyork", "London", "beijing", "paris"};
+String timezone_city[24] = {"-11", "-10", "-9", "Vancouver", "-7", "Chicago", "Newyork", "-4", "-3", "-2", "-1", "London", "Paris", "Athens", "Moscow", "4", "New Delhi", "Bangladesh", "Bangkok", "Beijing", "Tokyo", "10", "11", "12"};
 
 void setup(void)
 {
@@ -58,10 +60,10 @@ void setup(void)
 
     pin_init();
     tft_init();
+    congfig_init();
     wifi_init();
-    alarm_init();
 
-    tft.setCursor(0, 100);
+    tft.setCursor(0, 110);
     tft.print("All init over");
     delay(2000);
 
@@ -118,39 +120,42 @@ void tft_init()
 void wifi_init()
 {
     Serial.println("Start WIFI config and ntp init");
+    tft.fillScreen(ST77XX_BLACK);
 
-    tft.setCursor(0, 20);
+    tft.setCursor(0, 10);
     tft.print("WIFI init start");
 
-    tft.setCursor(0, 40);
+    tft.setCursor(0, 30);
     tft.print("If you want set WIFI. Hold down S1 button 3 second, then clock will go into Settings Mode. Use your phone connect to Makerfabs_ap, and visit \"192.168.4.1\".");
 
     if (wifi_set_main())
     {
-        tft.fillRect(0, 40, 128, 100, ST77XX_BLACK);
+        tft.fillRect(0, 20, 128, 128, ST77XX_BLACK);
         Serial.println("Connect WIFI SUCCESS");
-        tft.setCursor(0, 40);
+        tft.setCursor(0, 50);
         tft.print("Connect WIFI SUCCESS");
     }
     else
     {
-        tft.fillRect(0, 40, 128, 100, ST77XX_BLACK);
+        tft.fillRect(0, 30, 128, 100, ST77XX_BLACK);
         Serial.println("Connect WIFI FAULT");
-        tft.setCursor(0, 40);
+        tft.setCursor(0, 50);
         tft.print("Connect WIFI FAULT");
     }
 
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    //configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    configTime((const long)(timezone * 3600), daylightOffset_sec, ntpServer);
     Serial.println(F("Alread get npt time."));
-    tft.setCursor(0, 60);
+    tft.setCursor(0, 100);
     tft.print("Alread get npt time");
 }
 
-void alarm_init()
+void congfig_init()
 {
-    read_alarm(&alarm_h, &alarm_m);
-    tft.setCursor(0, 80);
-    tft.print("Alread get alarm time");
+    read_congfig(&alarm_h, &alarm_m, &timezone);
+    tft.setCursor(10, 10);
+    tft.print("Alread get congfig");
+    delay(500);
 }
 
 //Menu
@@ -168,12 +173,16 @@ void main_menu()
         clock_page();
         break;
     case 1:
+        alarm_page();
+        break;
+    case 2:
+        timezone_page();
+        break;
+    case 3:
         weather_page();
         //weather_request();
         break;
-    case 2:
-        alarm_page();
-        break;
+
     default:
         break;
     }
@@ -271,7 +280,7 @@ void clock_page()
         tft.fillRect(70, 110, 5, 5, ST77XX_BLACK);
     }
 
-    //Alarm display
+    //Config display
     tft.setCursor(80, 110);
     String alarm_str = "";
     alarm_h < 10 ? alarm_str += "0" : alarm_str += "";
@@ -363,6 +372,39 @@ void alarm_page()
     if (alarm_m < 10)
         tft.print("0");
     tft.print(alarm_m);
+}
+
+void timezone_page()
+{
+    tft.fillScreen(ST77XX_BLACK);
+
+    tft.setCursor(10, 10);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(2);
+    tft.print("TIMEZONE");
+
+    tft.setCursor(0, 30);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.print("Effective after rst");
+    if (page_add != 0)
+    {
+        page_add = 0;
+        timezone = ++timezone;
+        if (timezone > 12)
+            timezone = -11;
+        record_timezone(timezone);
+    }
+
+    tft.setCursor(30, 60);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setTextSize(4);
+    tft.print(timezone);
+
+    tft.setCursor(20, 90);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setTextSize(1);
+    tft.print(timezone_city[timezone + 11]);
 }
 
 //Functions
@@ -524,9 +566,9 @@ void record_alarm(int16_t hour, int16_t minute)
 
     // Open 打开NVS文件
     printf("\n");
-    printf("Opening Non-Volatile Alarm (NVS) handle... ");
-    nvs_handle my_handle;                               // 定义不透明句柄
-    err = nvs_open("Alarm", NVS_READWRITE, &my_handle); // 打开文件
+    printf("Opening Non-Volatile Config (NVS) handle... ");
+    nvs_handle my_handle;                                // 定义不透明句柄
+    err = nvs_open("Config", NVS_READWRITE, &my_handle); // 打开文件
     if (err != ESP_OK)
     {
         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
@@ -559,7 +601,50 @@ void record_alarm(int16_t hour, int16_t minute)
     printf("\n");
 }
 
-void read_alarm(int16_t *hour, int16_t *minute)
+void record_timezone(int16_t timezone)
+{
+
+    // 初始化NVS，并检查初始化情况
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        // 如果NVS分区被占用则对其进行擦除
+        // 并再次初始化
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+
+    // Open 打开NVS文件
+    printf("\n");
+    printf("Opening Non-Volatile Config (NVS) handle... ");
+    nvs_handle my_handle;                                // 定义不透明句柄
+    err = nvs_open("Config", NVS_READWRITE, &my_handle); // 打开文件
+    if (err != ESP_OK)
+    {
+        printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
+    }
+    else
+    {
+        printf("Done\n");
+
+        // Write
+        printf("Updating alarm_h in NVS ... ");
+        err = nvs_set_i16(my_handle, "timezone", timezone);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+        printf("Committing updates in NVS ... ");
+        err = nvs_commit(my_handle);
+        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
+
+        // Close
+        nvs_close(my_handle);
+    }
+
+    printf("\n");
+}
+
+void read_congfig(int16_t *hour, int16_t *minute, int16_t *timezone)
 {
     // 初始化NVS，并检查初始化情况
     esp_err_t err = nvs_flash_init();
@@ -574,9 +659,9 @@ void read_alarm(int16_t *hour, int16_t *minute)
 
     // Open 打开NVS文件
     printf("\n");
-    printf("Opening Non-Volatile Alarm (NVS) handle... ");
-    nvs_handle my_handle;                               // 定义不透明句柄
-    err = nvs_open("Alarm", NVS_READWRITE, &my_handle); // 打开文件
+    printf("Opening Non-Volatile Config (NVS) handle... ");
+    nvs_handle my_handle;                                // 定义不透明句柄
+    err = nvs_open("Config", NVS_READWRITE, &my_handle); // 打开文件
     if (err != ESP_OK)
     {
         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
@@ -586,8 +671,9 @@ void read_alarm(int16_t *hour, int16_t *minute)
         printf("Done\n");
 
         // Read
-        printf("Reading Alarm from NVS ... \n");
+        printf("Reading Config from NVS ... \n");
 
+        //Read alarm_h
         err = nvs_get_i16(my_handle, "alarm_h", hour);
         switch (err)
         {
@@ -602,12 +688,28 @@ void read_alarm(int16_t *hour, int16_t *minute)
             printf("Error (%s) reading!\n", esp_err_to_name(err));
         }
 
+        //Read alarm_m
         err = nvs_get_i16(my_handle, "alarm_m", minute);
         switch (err)
         {
         case ESP_OK:
             printf("Done\n");
             printf("alarm_m: %d\n", *minute);
+            break;
+        case ESP_ERR_NVS_NOT_FOUND:
+            printf("The value is not initialized yet!\n");
+            break;
+        default:
+            printf("Error (%s) reading!\n", esp_err_to_name(err));
+        }
+
+        //Read timezone
+        err = nvs_get_i16(my_handle, "timezone", timezone);
+        switch (err)
+        {
+        case ESP_OK:
+            printf("Done\n");
+            printf("timezone: %d\n", *timezone);
             break;
         case ESP_ERR_NVS_NOT_FOUND:
             printf("The value is not initialized yet!\n");
