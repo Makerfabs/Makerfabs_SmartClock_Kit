@@ -34,7 +34,7 @@ const long gmtOffset_sec = (-5) * 60 * 60; //China+8
 const int daylightOffset_sec = 0;
 
 struct tm timeinfo;
-const int page_num = 3;
+const int page_num = 4;
 int page = 0;
 int page_line = 0;
 int page_add = 0;
@@ -256,7 +256,7 @@ void clock_page()
     }
     tft.fillScreen(ST77XX_BLACK);
 
-    String date_str = (String)(timeinfo.tm_year + 1900) + "/" + (String)(timeinfo.tm_mon + 1) + "/" + (String)(timeinfo.tm_mday + 1);
+    String date_str = (String)(timeinfo.tm_year + 1900) + "/" + (String)(timeinfo.tm_mon + 1) + "/" + (String)(timeinfo.tm_mday);
 
     tft.setTextColor(ST77XX_WHITE);
     tft.setTextSize(1);
@@ -399,12 +399,14 @@ void timezone_page()
     tft.setCursor(30, 60);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(4);
+    if(timezone >= 0)
+    tft.print("+");
     tft.print(timezone);
 
     tft.setCursor(20, 90);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(1);
-    tft.print(timezone_city[timezone + 11]);
+    //tft.print(timezone_city[timezone + 11]);
 }
 
 //Functions
