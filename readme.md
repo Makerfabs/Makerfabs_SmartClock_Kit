@@ -2,17 +2,17 @@
 
 ```c++
 /*
-Version:		V1.0
+Version:		V1.1
 Author:			Vincent
 Create Date:	2021/4/14
 Note:
-
+	2021/5/27 V1.1:Add product link and picture.
 	
 */
 ```
 
 
-![](md_pic/main.gif)
+![](md_pic/main.jpg)
 
 
 
@@ -27,30 +27,45 @@ Note:
 
 
 # Makerfabs SmartClock Kit
-# 
+
+​	It is a kit for starters. After 1~2 hours soldering and assembly, and easy steps to set the WiFi ssid and password by a phone, you will get: 
+
+1. An real-time clock, it will get the world real-time from the Network timing protocol, you can set your local time zone easily 
+2. An Alarm clock, with loud noise 
+3. An Online world weather forecaster, about the local temperature/weather, you can easily change/alter your address/cities without any re-programming
 
 ## Intruduce
 
-Product Link ：[]() 
+Product Link ：[DIY ESP32 SmartClock Kit with Weather Forecasting](https://www.makerfabs.com/diy-esp32-smartclock-kit.html) 
 
-Wiki Link :  []() 
+Wiki Link :  [No wiki]() 
 
-
+Instruction Book : [DIY ESP32 Smart Clock Guide](https://www.makerfabs.com/desfile/files/DIY-ESP32-SmartClock-Guide-V1-5.pdf) 
 
 ## Feature
 
-- Integrated ESP32 2.4G WiFi and Bluetooth.
-- Input 5.0V Type-C USB .
-- ST7735 1.44 LCD inch Amorphous-TFT-LCD.  The resolution is 128*128.
-- Three buttons.
+- ESP32 WROOM module: WiFi, Bluetooth, 4MB Flash
+- 1.44inch 128*128 color display, ST7735 driver*
+- Micro USB interface
+- Support Arduino
+- 450mAh battery, support charge
+- Plug-in components, easy soldering
+
+### Part List
+- ESP32 SmartClock Kit Mainboard
+- Batch of Capacitors& Resistors/Connectors
+- Colorful LCD Module
+- Lipo Battery
+- Acrylic Boards
+- Nuts & screws
 
 
-### Front:
 
-![front](md_pic/front~1.jpg)
+![front](md_pic/front.jpg)
 
-### Back:
-![back](md_pic/back~1.jpg)
+
+
+![back](md_pic/back.jpg)
 
 
 # Firmware
@@ -75,8 +90,6 @@ Wiki Link :  []()
 
 ## How To Use
 
-![howtouse](md_pic/howtouse.jpg)
+[How to Make a DIY ESP32 SmartClock with Weather Forecasting](https://www.youtube.com/watch?v=e5g6aSs4Ocg&t=6s)
 
-- The first button is to switch pages
-- The second button is on the alarm Settings page to toggle hours and minutes.
-- The third button is on the alarm setting page, hour or minute +1.
+![Howtouse](md_pic/howtouse.jpg)
