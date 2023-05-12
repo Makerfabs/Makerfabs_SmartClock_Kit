@@ -30,7 +30,7 @@
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 
 const char *ntpServer = "120.25.108.11";
-const long gmtOffset_sec = (-5) * 60 * 60; //China+8
+const long gmtOffset_sec = (-5) * 60 * 60; // China+8
 const int daylightOffset_sec = 0;
 
 struct tm timeinfo;
@@ -49,8 +49,8 @@ long int weather_runtime = -600000;
 int button_flag = 0;
 int location_index = 0;
 
-String weather_location[] = {"Newyork", "London", "beijing", "paris"};
-String timezone_city[24] = {"-11", "-10", "-9", "Vancouver", "-7", "Chicago", "Newyork", "-4", "-3", "-2", "-1", "London", "Paris", "Athens", "Moscow", "4", "New Delhi", "Bangladesh", "Bangkok", "Beijing", "Tokyo", "10", "11", "12"};
+String weather_location[] = {"Washington", "London", "Beijing", "Paris"};
+String timezone_city[24] = {"-11", "-10", "-9", "Vancouver", "-7", "Chicago", "Washington", "-4", "-3", "-2", "-1", "London", "Paris", "Athens", "Moscow", "4", "New Delhi", "Bangladesh", "Bangkok", "Beijing", "Tokyo", "10", "11", "12"};
 
 void setup(void)
 {
@@ -69,7 +69,7 @@ void setup(void)
 
     tft.fillScreen(ST77XX_BLACK);
 
-    //Show logo
+    // Show logo
     tft.drawRGBBitmap(0, 0, a1, 128, 128);
     delay(1000);
 }
@@ -79,7 +79,7 @@ void loop()
     main_menu();
 }
 
-//Init
+// Init
 
 void pin_init()
 {
@@ -143,7 +143,7 @@ void wifi_init()
         tft.print("Connect WIFI FAULT");
     }
 
-    //configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    // configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     configTime((const long)(timezone * 3600), daylightOffset_sec, ntpServer);
     Serial.println(F("Alread get npt time."));
     tft.setCursor(0, 100);
@@ -158,7 +158,7 @@ void congfig_init()
     delay(500);
 }
 
-//Menu
+// Menu
 
 void main_menu()
 {
@@ -180,14 +180,14 @@ void main_menu()
         break;
     case 3:
         weather_page();
-        //weather_request();
+        // weather_request();
         break;
 
     default:
         break;
     }
 
-    //Check alarm clock
+    // Check alarm clock
     if (timeinfo.tm_hour == alarm_h && timeinfo.tm_min == alarm_m && alarm_enable == 1)
     {
         if (alarm_flag == 0)
@@ -199,7 +199,7 @@ void main_menu()
         alarm_flag = 0;
     }
 
-    //Check Button Status in 10s
+    // Check Button Status in 10s
     int runtime = millis();
     while (millis() - runtime < 10000)
     {
@@ -245,7 +245,7 @@ void main_menu()
 
 void clock_page()
 {
-    //If minute wasn't change,don't flesh screen
+    // If minute wasn't change,don't flesh screen
     if (last_h == timeinfo.tm_hour && last_m == timeinfo.tm_min && button_flag == 0)
         return;
     else
@@ -263,14 +263,14 @@ void clock_page()
     tft.setCursor(10, 10);
     tft.print(date_str);
 
-    //Check weather alarm enable set
+    // Check weather alarm enable set
     if (page_add == 1)
     {
         page_add = 0;
         alarm_enable = (alarm_enable + 1) % 2;
     }
 
-    //Check alarm enable display
+    // Check alarm enable display
     if (alarm_enable)
     {
         tft.fillRect(70, 110, 5, 5, ST77XX_YELLOW);
@@ -280,7 +280,7 @@ void clock_page()
         tft.fillRect(70, 110, 5, 5, ST77XX_BLACK);
     }
 
-    //Config display
+    // Config display
     tft.setCursor(80, 110);
     String alarm_str = "";
     alarm_h < 10 ? alarm_str += "0" : alarm_str += "";
@@ -289,7 +289,7 @@ void clock_page()
     alarm_str += (String)alarm_m;
     tft.print(alarm_str);
 
-    //Clock display
+    // Clock display
     tft.setCursor(45, 30);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(4);
@@ -305,7 +305,7 @@ void clock_page()
 
 void weather_page()
 {
-    //Every ten minutes requst.
+    // Every ten minutes requst.
     if (millis() - weather_runtime < 600000 && button_flag == 0)
         return;
     else
@@ -340,7 +340,7 @@ void alarm_page()
     tft.setTextSize(2);
     tft.print("ALARM SET");
 
-    //Check button action, set alarm time.
+    // Check button action, set alarm time.
     if (page_line % 2 == 0)
     {
         tft.fillCircle(35, 40, 4, ST77XX_WHITE);
@@ -399,31 +399,28 @@ void timezone_page()
     tft.setCursor(30, 60);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(4);
-    if(timezone >= 0)
-    tft.print("+");
+    if (timezone >= 0)
+        tft.print("+");
     tft.print(timezone);
 
     tft.setCursor(20, 90);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setTextSize(1);
-    //tft.print(timezone_city[timezone + 11]);
+    // tft.print(timezone_city[timezone + 11]);
 }
 
-//Functions
-
-String wind_txt[] = {"north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"};
-
+// Functions
 void weather_request()
 {
     HTTPClient http;
     String text = "";
 
     Serial.print("[HTTP] begin...\n");
-    // configure traged server and url
 
-    //persional api,please change to yourself
-    //bool begin(String url);
-    String url = "https://free-api.heweather.net/s6/weather/now?location=" + weather_location[location_index] + "&key=2d63e6d9a95c4e8f8d3f65d0b5bcdf7f&lang=en";
+    String url = "http://api.weatherapi.com/v1/current.json?key=271578bfbe12438085782536232404&q=" + weather_location[location_index] + "&aqi=no";
+
+    Serial.println(url);
+
     http.begin(url);
 
     Serial.print("[HTTP] GET...\n");
@@ -442,19 +439,19 @@ void weather_request()
             String payload = http.getString();
             Serial.println(payload);
 
-            //JSON
+            // JSON
             DynamicJsonDocument doc(1024);
             deserializeJson(doc, payload);
             JsonObject obj = doc.as<JsonObject>();
 
-            String cond_num = doc["HeWeather6"][0]["now"]["cond_code"];
-            String cond_txt = doc["HeWeather6"][0]["now"]["cond_txt"];
-            String tmp = doc["HeWeather6"][0]["now"]["tmp"];
-            String hum = doc["HeWeather6"][0]["now"]["hum"];
-            int wind_deg = doc["HeWeather6"][0]["now"]["wind_deg"];
+            int cond_num = doc["current"]["condition"]["code"];
+            String cond_txt = doc["current"]["condition"]["text"];
+            int tmp = doc["current"]["temp_c"];
+            int hum = doc["current"]["humidity"];
+            String wind_dir = doc["current"]["wind_dir"];
 
             weather_show(cond_num, tmp, hum);
-            text = "Shenzhen, " + cond_txt + ", " + tmp + " centigrade, " + wind_txt[wind_deg / 45] + " wind,relative humidity " + hum + " percent.";
+            text = weather_location[location_index] + cond_txt + ", " + tmp + " centigrade, " + wind_dir + " wind,relative humidity " + hum + " percent.";
             Serial.println(text);
         }
     }
@@ -466,7 +463,7 @@ void weather_request()
     http.end();
 }
 
-void weather_show(String cond_num, String temperature, String hum)
+void weather_show(int cond_num, int temperature, int hum)
 {
     tft.fillScreen(ST77XX_BLACK);
 
@@ -475,17 +472,16 @@ void weather_show(String cond_num, String temperature, String hum)
     tft.setCursor(20, 10);
     tft.print(weather_location[location_index]);
 
-    int cond_code = cond_num.toInt();
-    Serial.printf("cond_code: %d\n", cond_code);
+    Serial.printf("cond_code: %d\n", cond_num);
 
-    //The weather code is in https://dev.qweather.com/docs/start/icons/
-    if (cond_code == 100 || cond_code == 150) //sun
+    // The weather code is in https://www.weatherapi.com/docs/conditions.json
+    if (cond_num == 1000) // sun
         tft.drawRGBBitmap(32, 32, sun, 64, 64);
-    else if (cond_code > 100 && cond_code < 300) //cloud
+    else if (cond_num > 1000 && cond_num <= 1147) // cloud
         tft.drawRGBBitmap(32, 32, cloud, 64, 64);
-    else if (cond_code >= 300 && cond_code < 400) //rain
+    else if (cond_num > 1147 && cond_num < 1204) // rain
         tft.drawRGBBitmap(32, 32, rain, 64, 64);
-    else if (cond_code >= 400 && cond_code < 500) //snow
+    else if (cond_num >= 1204 && cond_num < 1282) // snow
         tft.drawRGBBitmap(32, 32, snow, 64, 64);
     else
     {
@@ -675,7 +671,7 @@ void read_congfig(int16_t *hour, int16_t *minute, int16_t *timezone)
         // Read
         printf("Reading Config from NVS ... \n");
 
-        //Read alarm_h
+        // Read alarm_h
         err = nvs_get_i16(my_handle, "alarm_h", hour);
         switch (err)
         {
@@ -690,7 +686,7 @@ void read_congfig(int16_t *hour, int16_t *minute, int16_t *timezone)
             printf("Error (%s) reading!\n", esp_err_to_name(err));
         }
 
-        //Read alarm_m
+        // Read alarm_m
         err = nvs_get_i16(my_handle, "alarm_m", minute);
         switch (err)
         {
@@ -705,7 +701,7 @@ void read_congfig(int16_t *hour, int16_t *minute, int16_t *timezone)
             printf("Error (%s) reading!\n", esp_err_to_name(err));
         }
 
-        //Read timezone
+        // Read timezone
         err = nvs_get_i16(my_handle, "timezone", timezone);
         switch (err)
         {
