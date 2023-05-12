@@ -2,21 +2,19 @@
 
 ```c++
 /*
-Version:		V1.1
-Author:			Vincent
-Create Date:	2021/4/14
+Version:        V1.2
+Author:            Vincent
+Create Date:    2021/4/14
 Note:
-	2021/5/27 V1.1:Add product link and picture.
-	
+    2023/5/12 V1.2:Change Weather API.
+    2021/5/27 V1.1:Add product link and picture.
+
 */
 ```
 
-
 ![](md_pic/main.jpg)
 
-
-
-[toc]
+[TOC]
 
 # Makerfabs
 
@@ -24,11 +22,9 @@ Note:
 
 [Makerfabs Wiki](https://makerfabs.com/wiki/index.php?title=Main_Page)
 
-
-
 # Makerfabs SmartClock Kit
 
-​	It is a kit for starters. After 1~2 hours soldering and assembly, and easy steps to set the WiFi ssid and password by a phone, you will get: 
+​    It is a kit for starters. After 1~2 hours soldering and assembly, and easy steps to set the WiFi ssid and password by a phone, you will get: 
 
 1. An real-time clock, it will get the world real-time from the Network timing protocol, you can set your local time zone easily 
 2. An Alarm clock, with loud noise 
@@ -52,6 +48,7 @@ Instruction Book : [DIY ESP32 Smart Clock Guide](https://www.makerfabs.com/desfi
 - Plug-in components, easy soldering
 
 ### Part List
+
 - ESP32 SmartClock Kit Mainboard
 - Batch of Capacitors& Resistors/Connectors
 - Colorful LCD Module
@@ -59,31 +56,27 @@ Instruction Book : [DIY ESP32 Smart Clock Guide](https://www.makerfabs.com/desfi
 - Acrylic Boards
 - Nuts & screws
 
-
-
 ![front](md_pic/front.jpg)
-
-
 
 ![back](md_pic/back.jpg)
 
-
 # Firmware
-
 
 ## Equipment list
 
 - SmartClock Kit
 - Soldering iron
 
-
 ## Compiler Options
 
 **If you have any questions，such as how to install the development board, how to download the code, how to install the library. Please refer to :[Makerfabs_FAQ](https://github.com/Makerfabs/Makerfabs_FAQ)**
 
 - Install board : ESP32 .
+
 - Install library : Adafruit_GFX library.
+
 - Install library : Adafruit_ST7735 library.
+
 - Install library : ArduinoJson library.
 
 - Upload codes, select "ESP32 Dev Module" and "Huge APP"
